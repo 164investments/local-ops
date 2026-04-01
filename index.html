@@ -235,10 +235,15 @@
         const lbl = document.createElement('label');
         lbl.textContent = `${i.label}:`;
         const inp = document.createElement('input');
-        inp.type = 'text';
+        inp.type = i.id.includes('date') ? 'date' : 'text';
         inp.dataset.script = s.id;
         inp.dataset.input = i.id;
         inp.placeholder = i.placeholder || '';
+        if (inp.type === 'date') {
+          // Default to yesterday
+          const d = new Date(); d.setDate(d.getDate() - 1);
+          inp.value = d.toISOString().split('T')[0];
+        }
         group.appendChild(lbl);
         group.appendChild(inp);
         controls.appendChild(group);
