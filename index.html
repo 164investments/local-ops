@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Ops</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a0a; color: #e5e5e5;
+      min-height: 100vh;
+    }
+    header {
+      border-bottom: 1px solid #262626;
+      padding: 16px 24px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+
+    nav {
+      border-bottom: 1px solid #262626;
+      padding: 0 24px;
+      display: flex; gap: 0;
+    }
+    nav button {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #a3a3a3; padding: 12px 20px; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+    }
+    nav button:hover { color: #e5e5e5; }
+    nav button.active {
+      color: #e5e5e5; border-bottom-color: #22c55e;
+    }
+
+    main { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+    .script-card {
+      background: #171717; border: 1px solid #262626; border-radius: 12px;
+      padding: 20px;
+    }
+    .script-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .script-card p { font-size: 13px; color: #a3a3a3; margin-bottom: 16px; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+    label.flag {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; cursor: pointer; user-select: none;
+    }
+    label.flag input[type="checkbox"] {
+      accent-color: #22c55e; width: 16px; height: 16px;
+    }
+
+    .input-group { display: flex; align-items: center; gap: 6px; }
+    .input-group label { font-size: 13px; color: #a3a3a3; white-space: nowrap; }
+    .input-group input {
+      background: #0a0a0a; border: 1px solid #404040; border-radius: 6px;
+      color: #e5e5e5; padding: 6px 10px; font-size: 13px; width: 140px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .input-group input:focus { outline: none; border-color: #22c55e; }
+
+    button.run {
+      background: #22c55e; color: #0a0a0a; border: none; border-radius: 8px;
+      padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button.run:hover { opacity: 0.9; }
+    button.run:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.run.running { background: #ef4444; color: white; }
+
+    .output {
+      background: #0a0a0a; border: 1px solid #262626; border-radius: 8px;
+      padding: 12px 16px; font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px; line-height: 1.6; max-height: 400px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word; display: none;
+    }
+    .output.visible { display: block; }
+    .stderr { color: #f87171; }
+    .exit-ok { color: #22c55e; font-weight: 600; }
+    .exit-fail { color: #ef4444; font-weight: 600; }
+
+    /* Properties table */
+    .props-section {
+      background: #171717; border: 1px solid #262626; border-radius: 12px;
+      padding: 20px; margin-top: 16px;
+    }
+    .props-section h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .props-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    table.props { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.props th {
+      text-align: left; padding: 8px 12px; color: #a3a3a3; font-weight: 500;
+      border-bottom: 1px solid #262626; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    table.props td {
+      padding: 10px 12px; border-bottom: 1px solid #1a1a1a; vertical-align: top;
+    }
+    table.props tr:hover td { background: #1a1a1a; }
+    .cert { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: #a3a3a3; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 9999px;
+      font-size: 11px; font-weight: 500;
+    }
+    .badge-active { background: #052e16; color: #4ade80; }
+    .badge-inactive { background: #1c1917; color: #a3a3a3; }
+    .addr { font-size: 12px; color: #737373; }
+    .listings-list { font-size: 12px; color: #a3a3a3; }
+    .action-btns { display: flex; gap: 6px; }
+    .btn-sm {
+      background: #262626; color: #e5e5e5; border: 1px solid #404040; border-radius: 6px;
+      padding: 4px 10px; font-size: 12px; cursor: pointer;
+    }
+    .btn-sm:hover { background: #333; }
+    .btn-sm.danger { color: #f87171; border-color: #7f1d1d; }
+    .btn-sm.danger:hover { background: #450a0a; }
+    button.btn-add {
+      background: #22c55e; color: #0a0a0a; border: none; border-radius: 8px;
+      padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex;
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal {
+      background: #171717; border: 1px solid #262626; border-radius: 12px;
+      padding: 24px; width: 480px; max-width: 90vw;
+    }
+    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .form-field { margin-bottom: 12px; }
+    .form-field label { display: block; font-size: 12px; color: #a3a3a3; margin-bottom: 4px; }
+    .form-field input, .form-field select {
+      width: 100%; background: #0a0a0a; border: 1px solid #404040; border-radius: 6px;
+      color: #e5e5e5; padding: 8px 10px; font-size: 13px;
+    }
+    .form-field input:focus { outline: none; border-color: #22c55e; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .btn-cancel {
+      background: #262626; color: #e5e5e5; border: 1px solid #404040; border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; cursor: pointer;
+    }
+    .btn-save {
+      background: #22c55e; color: #0a0a0a; border: none; border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .form-check { display: flex; align-items: center; gap: 8px; }
+    .form-check input { width: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="dot"></div>
+    <h1>Local Ops</h1>
+  </header>
+  <nav id="tabs"></nav>
+  <main id="app"></main>
+
+  <script>
+    const tabsEl = document.getElementById('tabs');
+    const app = document.getElementById('app');
+    let scripts = [];
+    let activeTab = null;
+
+    async function loadScripts() {
+      const res = await fetch('/api/scripts');
+      scripts = await res.json();
+      // Restore tab from URL hash or default to first
+      const hash = location.hash.slice(1);
+      activeTab = scripts.find(s => s.id === hash)?.id ?? scripts[0]?.id;
+      renderTabs();
+      renderCard();
+    }
+
+    function renderTabs() {
+      tabsEl.textContent = '';
+      for (const s of scripts) {
+        const btn = document.createElement('button');
+        btn.textContent = s.name;
+        btn.className = s.id === activeTab ? 'active' : '';
+        btn.addEventListener('click', () => {
+          activeTab = s.id;
+          location.hash = s.id;
+          renderTabs();
+          renderCard();
+        });
+        tabsEl.appendChild(btn);
+      }
+    }
+
+    // Keep output state across tab switches
+    const outputState = {};
+
+    function renderCard() {
+      const s = scripts.find(sc => sc.id === activeTab);
+      if (!s) return;
+
+      app.textContent = '';
+
+      const card = document.createElement('div');
+      card.className = 'script-card';
+
+      const h2 = document.createElement('h2');
+      h2.textContent = s.name;
+      card.appendChild(h2);
+
+      const desc = document.createElement('p');
+      desc.textContent = s.description;
+      card.appendChild(desc);
+
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      // Flags
+      for (const f of (s.flags || [])) {
+        const label = document.createElement('label');
+        label.className = 'flag';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.dataset.script = s.id;
+        cb.dataset.flag = f.id;
+        if (f.default) cb.checked = true;
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(` ${f.label}`));
+        controls.appendChild(label);
+      }
+
+      // Inputs
+      for (const i of (s.inputs || [])) {
+        const group = document.createElement('div');
+        group.className = 'input-group';
+        const lbl = document.createElement('label');
+        lbl.textContent = `${i.label}:`;
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.dataset.script = s.id;
+        inp.dataset.input = i.id;
+        inp.placeholder = i.placeholder || '';
+        group.appendChild(lbl);
+        group.appendChild(inp);
+        controls.appendChild(group);
+      }
+
+      // Run button
+      const btn = document.createElement('button');
+      btn.className = 'run';
+      btn.dataset.script = s.id;
+      btn.textContent = activeControllers[s.id] ? 'Stop' : 'Run';
+      if (activeControllers[s.id]) btn.classList.add('running');
+      btn.addEventListener('click', () => runScript(s.id));
+      controls.appendChild(btn);
+
+      card.appendChild(controls);
+
+      // Output — restore previous output if it exists
+      const output = document.createElement('div');
+      output.className = 'output';
+      output.id = `output-${s.id}`;
+      if (outputState[s.id]) {
+        output.classList.add('visible');
+        // Restore saved nodes
+        for (const node of outputState[s.id]) {
+          output.appendChild(node.cloneNode(true));
+        }
+        output.scrollTop = output.scrollHeight;
+      }
+      card.appendChild(output);
+
+      app.appendChild(card);
+
+      // Show properties table on clackamas-tax tab
+      if (s.id === 'clackamas-tax') {
+        const propsSection = document.createElement('div');
+        propsSection.className = 'props-section';
+        propsSection.id = 'props-section';
+        app.appendChild(propsSection);
+        loadProperties();
+      }
+    }
+
+    // ─── Properties ────────────────────────────────────────────
+
+    let properties = [];
+    let listingNames = {};
+
+    async function loadProperties() {
+      const section = document.getElementById('props-section');
+      if (!section) return;
+      const propsRes = await fetch('/api/tax/properties');
+      properties = await propsRes.json();
+      const allIds = [...new Set(properties.flatMap(p => p.listing_ids || []))];
+      if (allIds.length > 0) {
+        const namesRes = await fetch('/api/tax/listing-names?ids=' + allIds.join(','));
+        const names = await namesRes.json();
+        listingNames = {};
+        for (const n of names) listingNames[n.id] = n.nickname;
+      }
+      renderProperties();
+    }
+
+    function renderProperties() {
+      const section = document.getElementById('props-section');
+      if (!section) return;
+      section.textContent = '';
+      const header = document.createElement('div');
+      header.className = 'props-header';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Properties';
+      header.appendChild(h3);
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-add';
+      addBtn.textContent = '+ Add Property';
+      addBtn.addEventListener('click', () => openPropertyModal());
+      header.appendChild(addBtn);
+      section.appendChild(header);
+
+      const table = document.createElement('table');
+      table.className = 'props';
+      const thead = document.createElement('thead');
+      const hrow = document.createElement('tr');
+      for (const col of ['Cert #', 'Name', 'Listings', 'Owner', 'Active', '']) {
+        const th = document.createElement('th');
+        th.textContent = col;
+        hrow.appendChild(th);
+      }
+      thead.appendChild(hrow);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      for (const p of properties) {
+        const tr = document.createElement('tr');
+        const tdCert = document.createElement('td');
+        tdCert.className = 'cert';
+        tdCert.textContent = p.certificate_no;
+        tr.appendChild(tdCert);
+        const tdName = document.createElement('td');
+        tdName.appendChild(document.createTextNode(p.name));
+        if (p.address) {
+          const ad = document.createElement('div');
+          ad.className = 'addr';
+          ad.textContent = p.address;
+          tdName.appendChild(ad);
+        }
+        tr.appendChild(tdName);
+        const tdList = document.createElement('td');
+        tdList.className = 'listings-list';
+        const nm = (p.listing_ids || []).map(id => listingNames[id] || '#' + id);
+        tdList.textContent = nm.length === 0 ? 'None' : nm.length <= 2 ? nm.join(', ') : nm[0] + ' +' + (nm.length - 1) + ' more';
+        tr.appendChild(tdList);
+        const tdOwner = document.createElement('td');
+        tdOwner.textContent = p.owner_name || '\u2014';
+        tr.appendChild(tdOwner);
+        const tdActive = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (p.active ? 'badge-active' : 'badge-inactive');
+        badge.textContent = p.active ? 'Active' : 'Inactive';
+        tdActive.appendChild(badge);
+        tr.appendChild(tdActive);
+        const tdAct = document.createElement('td');
+        tdAct.className = 'action-btns';
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-sm';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => openPropertyModal(p));
+        tdAct.appendChild(editBtn);
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-sm danger';
+        delBtn.textContent = 'Delete';
+        delBtn.addEventListener('click', async () => {
+          if (!confirm('Delete this property?')) return;
+          await fetch('/api/tax/properties', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.id }) });
+          loadProperties();
+        });
+        tdAct.appendChild(delBtn);
+        tr.appendChild(tdAct);
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      section.appendChild(table);
+    }
+
+    function openPropertyModal(prop = null) {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      const h3 = document.createElement('h3');
+      h3.textContent = prop ? 'Edit Property' : 'Add Property';
+      modal.appendChild(h3);
+      const fields = [
+        { key: 'certificate_no', label: 'Certificate #', ph: '#1234-25' },
+        { key: 'name', label: 'Name', ph: 'Property name on tax form' },
+        { key: 'address', label: 'Address', ph: '12345 E Street Rd' },
+        { key: 'owner_name', label: 'Owner', ph: 'Owner name' },
+      ];
+      const fi = {};
+      for (const f of fields) {
+        const d = document.createElement('div'); d.className = 'form-field';
+        const l = document.createElement('label'); l.textContent = f.label; d.appendChild(l);
+        const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = f.ph;
+        inp.value = prop ? (prop[f.key] || '') : ''; fi[f.key] = inp; d.appendChild(inp);
+        modal.appendChild(d);
+      }
+      const cd = document.createElement('div'); cd.className = 'form-field form-check';
+      const ci = document.createElement('input'); ci.type = 'checkbox'; ci.checked = prop ? prop.active : true; fi.active = ci;
+      const cl = document.createElement('label'); cl.textContent = 'Active'; cl.style.marginBottom = '0';
+      cd.appendChild(ci); cd.appendChild(cl); modal.appendChild(cd);
+      const ld = document.createElement('div'); ld.className = 'form-field';
+      const ll = document.createElement('label'); ll.textContent = 'Listing IDs (comma-separated)'; ld.appendChild(ll);
+      const li = document.createElement('input'); li.type = 'text'; li.placeholder = '123, 456, 789';
+      li.value = prop ? (prop.listing_ids || []).join(', ') : ''; fi.listing_ids = li; ld.appendChild(li);
+      modal.appendChild(ld);
+      const acts = document.createElement('div'); acts.className = 'modal-actions';
+      const canBtn = document.createElement('button'); canBtn.className = 'btn-cancel'; canBtn.textContent = 'Cancel';
+      canBtn.addEventListener('click', () => overlay.remove()); acts.appendChild(canBtn);
+      const savBtn = document.createElement('button'); savBtn.className = 'btn-save'; savBtn.textContent = prop ? 'Save' : 'Add';
+      savBtn.addEventListener('click', async () => {
+        const payload = {
+          certificate_no: fi.certificate_no.value.trim(), name: fi.name.value.trim(),
+          address: fi.address.value.trim(), owner_name: fi.owner_name.value.trim() || null,
+          active: fi.active.checked,
+          listing_ids: fi.listing_ids.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)),
+        };
+        if (prop) payload.id = prop.id;
+        await fetch('/api/tax/properties', { method: prop ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        overlay.remove();
+        loadProperties();
+      });
+      acts.appendChild(savBtn); modal.appendChild(acts);
+      overlay.appendChild(modal); document.body.appendChild(overlay);
+    }
+
+    function saveOutputState(id) {
+      const output = document.getElementById(`output-${id}`);
+      if (output) {
+        outputState[id] = Array.from(output.childNodes);
+      }
+    }
+
+    const activeControllers = {};
+
+    async function runScript(id) {
+      const btn = document.querySelector(`button[data-script="${id}"]`);
+      const output = document.getElementById(`output-${id}`);
+
+      if (activeControllers[id]) {
+        activeControllers[id].abort();
+        delete activeControllers[id];
+        btn.textContent = 'Run';
+        btn.classList.remove('running');
+        saveOutputState(id);
+        return;
+      }
+
+      const flags = {};
+      document.querySelectorAll(`input[type="checkbox"][data-script="${id}"]`).forEach(el => {
+        flags[el.dataset.flag] = el.checked;
+      });
+
+      const inputs = {};
+      document.querySelectorAll(`input[type="text"][data-script="${id}"]`).forEach(el => {
+        if (el.value.trim()) inputs[el.dataset.input] = el.value.trim();
+      });
+
+      output.textContent = '';
+      output.classList.add('visible');
+      outputState[id] = [];
+      btn.textContent = 'Stop';
+      btn.classList.add('running');
+
+      const controller = new AbortController();
+      activeControllers[id] = controller;
+
+      try {
+        const res = await fetch(`/api/run/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ flags, inputs }),
+          signal: controller.signal,
+        });
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const msg = JSON.parse(line.slice(6));
+              // Only append if this tab is still active
+              const currentOutput = document.getElementById(`output-${id}`);
+              if (!currentOutput) {
+                // Tab switched — save to state buffer
+                appendToState(id, msg);
+                continue;
+              }
+              appendToOutput(currentOutput, msg);
+            } catch {}
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          const currentOutput = document.getElementById(`output-${id}`);
+          if (currentOutput) {
+            const span = document.createElement('span');
+            span.className = 'stderr';
+            span.textContent = `Connection error: ${err.message}`;
+            currentOutput.appendChild(span);
+          }
+        }
+      }
+
+      delete activeControllers[id];
+      // Update button if still on this tab
+      const currentBtn = document.querySelector(`button[data-script="${id}"]`);
+      if (currentBtn) {
+        currentBtn.textContent = 'Run';
+        currentBtn.classList.remove('running');
+      }
+      saveOutputState(id);
+    }
+
+    function appendToOutput(output, msg) {
+      if (msg.type === 'stdout') {
+        output.appendChild(document.createTextNode(msg.data));
+      } else if (msg.type === 'stderr') {
+        const span = document.createElement('span');
+        span.className = 'stderr';
+        span.textContent = msg.data;
+        output.appendChild(span);
+      } else if (msg.type === 'exit') {
+        const span = document.createElement('span');
+        span.className = msg.data.code === 0 ? 'exit-ok' : 'exit-fail';
+        span.textContent = `\nProcess exited with code ${msg.data.code}`;
+        output.appendChild(span);
+      } else if (msg.type === 'error') {
+        const span = document.createElement('span');
+        span.className = 'stderr';
+        span.textContent = `Error: ${msg.data}`;
+        output.appendChild(span);
+      }
+      output.scrollTop = output.scrollHeight;
+      saveOutputState(output.id.replace('output-', ''));
+    }
+
+    function appendToState(id, msg) {
+      if (!outputState[id]) outputState[id] = [];
+      const temp = document.createElement('div');
+      appendToOutput(temp, msg);
+      for (const node of temp.childNodes) {
+        outputState[id].push(node);
+      }
+    }
+
+    // Listen for hash changes (back/forward)
+    window.addEventListener('hashchange', () => {
+      const hash = location.hash.slice(1);
+      const s = scripts.find(sc => sc.id === hash);
+      if (s) {
+        activeTab = s.id;
+        renderTabs();
+        renderCard();
+      }
+    });
+
+    loadScripts();
+  </script>
+</body>
+</html>

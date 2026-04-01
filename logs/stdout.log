@@ -1,0 +1,31 @@
+Local Ops running at http://localhost:3099
+Local Ops running at http://localhost:3099
+Local Ops running at http://localhost:3099
+Local Ops running at http://localhost:3099
+Local Ops running at http://localhost:3099
+Local Ops running at http://localhost:3099
+Local Ops running at http://localhost:3099
+[run] spawning: /opt/homebrew/Cellar/node/25.7.0/bin/node /Users/trevorstout/scripts/booking-pay/pay-invoices.mjs --dry-run
+[run] stdout: [2026-03-19T19:11:56.041Z] === DRY RUN ===
+
+[run] stdout: [2026-03-19T19:12:02.885Z] Saved session expired. Opening browser for manual log
+[run] stdout: [2026-03-19T19:12:02.941Z] Opening browser for manual login...
+
+[run] stdout: [2026-03-19T19:12:02.941Z] >>> A Chrome window will open. Log in to Booking.com.
+[run] stdout: [2026-03-19T19:12:06.236Z] Waiting for login... (you have 5 minutes)
+
+Local Ops running at http://localhost:3099
+[run] spawning: /opt/homebrew/Cellar/node/25.7.0/bin/node /Users/trevorstout/scripts/booking-pay/pay-invoices.mjs --dry-run
+[run] stdout: [2026-03-19T19:14:02.071Z] === DRY RUN ===
+
+[run] stdout: [2026-03-19T19:14:08.145Z] Saved session expired. Opening browser for manual log
+[run] stdout: [2026-03-19T19:14:08.174Z] Opening browser for manual login...
+
+[run] stdout: [2026-03-19T19:14:08.174Z] >>> A Chrome window will open. Log in to Booking.com.
+[run] stdout: [2026-03-19T19:14:11.486Z] Waiting for login... (you have 5 minutes)
+
+Local Ops running at http://localhost:3099
+[dotenv@17.3.1] injecting env (2) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+Local Ops running at http://localhost:3099
+[dotenv@17.3.1] injecting env (2) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+Local Ops running at http://localhost:3099
