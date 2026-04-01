@@ -39,7 +39,12 @@ if [ -d "$INSTALL_DIR/.git" ]; then
   git pull --ff-only
 else
   echo "Installing Local Ops..."
-  git clone https://github.com/164investments/local-ops.git "$INSTALL_DIR"
+  # Use gh CLI if available (handles private repo auth), fallback to git
+  if command -v gh &>/dev/null; then
+    gh repo clone 164investments/local-ops "$INSTALL_DIR"
+  else
+    git clone https://github.com/164investments/local-ops.git "$INSTALL_DIR"
+  fi
   cd "$INSTALL_DIR"
 fi
 
