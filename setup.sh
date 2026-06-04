@@ -60,6 +60,96 @@ install_node_modules() {
   fi
 }
 
+env_value() {
+  local key="$1"
+  local file="$2"
+
+  if [ ! -f "$file" ]; then
+    return
+  fi
+
+  awk -F= -v key="$key" '$1 == key { print substr($0, length(key) + 2); exit }' "$file"
+}
+
+write_tsheets_env() {
+  local env_file="$1"
+  local gmail_user="$2"
+  local gmail_app_password="$3"
+  local notify_email="$4"
+
+  umask 077
+  cat > "$env_file" << EOF
+GMAIL_USER=$gmail_user
+GMAIL_APP_PASSWORD=$gmail_app_password
+NOTIFY_EMAIL=$notify_email
+WAREHOUSE_LAT=45.5205172
+WAREHOUSE_LNG=-122.6552987
+MAX_DISTANCE_FT=500
+EOF
+  chmod 600 "$env_file"
+}
+
+configure_tsheets_env() {
+  local env_file="$SCRIPTS_DIR/tsheets-check/.env"
+  local current_user current_password current_notify
+
+  current_user="$(env_value GMAIL_USER "$env_file" || true)"
+  current_password="$(env_value GMAIL_APP_PASSWORD "$env_file" || true)"
+  current_notify="$(env_value NOTIFY_EMAIL "$env_file" || true)"
+
+  if [ -n "$current_user" ] && [ -n "$current_password" ] && [ -n "$current_notify" ]; then
+    chmod 600 "$env_file"
+    echo "TSheets email credentials are configured."
+    return
+  fi
+
+  if [ ! -t 0 ]; then
+    if [ ! -f "$env_file" ]; then
+      write_tsheets_env "$env_file" "" "" "trevor@stayportland.com"
+    fi
+    echo ""
+    echo "  ⚠  TSheets email credentials are not configured."
+    echo "     Edit $env_file to add GMAIL_USER and GMAIL_APP_PASSWORD."
+    echo ""
+    return
+  fi
+
+  echo ""
+  echo "  Configure TSheets email reports."
+  echo "  Use a Gmail App Password, not the normal Gmail login password."
+  echo "  App Passwords: https://myaccount.google.com/apppasswords"
+  echo ""
+
+  local gmail_user gmail_app_password notify_email default_notify
+  default_notify="${current_notify:-trevor@stayportland.com}"
+
+  read -r -p "  Gmail address${current_user:+ [$current_user]}: " gmail_user
+  gmail_user="${gmail_user:-$current_user}"
+
+  if [ -n "$current_password" ]; then
+    read -r -s -p "  Gmail App Password [keep existing if blank]: " gmail_app_password
+    echo ""
+    gmail_app_password="${gmail_app_password:-$current_password}"
+  else
+    read -r -s -p "  Gmail App Password: " gmail_app_password
+    echo ""
+  fi
+
+  read -r -p "  Notification email(s) [$default_notify]: " notify_email
+  notify_email="${notify_email:-$default_notify}"
+
+  write_tsheets_env "$env_file" "$gmail_user" "$gmail_app_password" "$notify_email"
+
+  if [ -n "$gmail_user" ] && [ -n "$gmail_app_password" ] && [ -n "$notify_email" ]; then
+    echo "  TSheets email credentials saved to $env_file"
+  else
+    echo ""
+    echo "  ⚠  TSheets email credentials are still incomplete."
+    echo "     Email reports will be skipped until $env_file is filled in."
+  fi
+  echo ""
+}
+
 echo ""
 echo "  ╔═══════════════════════════════════════╗"
 echo "  ║     164 Investments — Local Ops       ║"
@@ -116,23 +206,7 @@ if [ ! -d "$SCRIPTS_DIR/tsheets-check" ]; then
   cd "$SCRIPTS_DIR/tsheets-check"
   install_node_modules
   npx playwright install chromium
-
-  # Create default .env if it doesn't exist
-  if [ ! -f .env ]; then
-    cat > .env << 'ENVEOF'
-GMAIL_USER=
-GMAIL_APP_PASSWORD=
-NOTIFY_EMAIL=trevor@stayportland.com
-WAREHOUSE_LAT=45.5205172
-WAREHOUSE_LNG=-122.6552987
-MAX_DISTANCE_FT=500
-ENVEOF
-    echo ""
-    echo "  ⚠  TSheets .env created at $SCRIPTS_DIR/tsheets-check/.env"
-    echo "     Edit it to add your Gmail credentials for email reports."
-    echo "     Get an App Password at: https://myaccount.google.com/apppasswords"
-    echo ""
-  fi
+  configure_tsheets_env
 
   cd "$INSTALL_DIR"
 else
@@ -146,6 +220,7 @@ else
   cd "$SCRIPTS_DIR/tsheets-check"
   install_node_modules
   npx playwright install chromium
+  configure_tsheets_env
   cd "$INSTALL_DIR"
 fi
 

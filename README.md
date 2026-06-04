@@ -25,7 +25,7 @@ Run the install command again, or double-click `Update Local Ops.command` in `~/
 
 The first run opens a browser so the user can log in to QuickBooks Time. The saved browser session is stored locally and is ignored by git.
 
-Email reports require `~/scripts/tsheets-check/.env` with:
+The installer prompts for email report credentials if `~/scripts/tsheets-check/.env` is missing or incomplete. Email reports require:
 
 ```bash
 GMAIL_USER=
