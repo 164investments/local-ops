@@ -264,11 +264,7 @@
         inp.dataset.script = s.id;
         inp.dataset.input = i.id;
         inp.placeholder = i.placeholder || '';
-        if (inp.type === 'date') {
-          // Default to yesterday
-          const d = new Date(); d.setDate(d.getDate() - 1);
-          inp.value = d.toISOString().split('T')[0];
-        }
+        if (inp.type === 'date') inp.value = getYesterdayDateValue();
         group.appendChild(lbl);
         group.appendChild(inp);
         controls.appendChild(group);
@@ -472,6 +468,29 @@
     }
 
     const activeControllers = {};
+    const PAYROLL_WEEK_START_DAY = 2; // Tuesday, JavaScript getDay() format: Sunday=0
+
+    function toDateValue(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getYesterdayDateValue() {
+      const date = new Date();
+      date.setDate(date.getDate() - 1);
+      return toDateValue(date);
+    }
+
+    function getPreviousCompletedWeekStartValue() {
+      const date = new Date();
+      date.setDate(date.getDate() - 1);
+      const payrollWeekEndDay = (PAYROLL_WEEK_START_DAY + 6) % 7;
+      const daysSinceWeekEnd = (date.getDay() - payrollWeekEndDay + 7) % 7;
+      date.setDate(date.getDate() - daysSinceWeekEnd - 6);
+      return toDateValue(date);
+    }
 
     function updateScriptMode(id) {
       const script = scripts.find(sc => sc.id === id);
@@ -480,6 +499,12 @@
       const mode = script.modes.find(entry => entry.id === modeSelect?.value) || script.modes[0];
       const dateLabel = document.querySelector(`label[data-script="${id}"][data-label-for="date"]`);
       if (dateLabel) dateLabel.textContent = `${mode.dateLabel}:`;
+      const dateInput = document.querySelector(`input[data-script="${id}"][data-input="date"]`);
+      if (dateInput) {
+        dateInput.value = mode.id === 'week'
+          ? getPreviousCompletedWeekStartValue()
+          : getYesterdayDateValue();
+      }
     }
 
     async function runScript(id) {

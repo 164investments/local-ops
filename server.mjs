@@ -80,7 +80,7 @@ const SCRIPTS = [
     ],
     modes: [
       { id: "day", label: "Single Day", dateLabel: "Date (YYYY-MM-DD)", dateArg: "--date" },
-      { id: "week", label: "Full Week", dateLabel: "Week Start (YYYY-MM-DD)", dateArg: "--week-start" },
+      { id: "week", label: "Full Week", dateLabel: "Week Start Tue (YYYY-MM-DD)", dateArg: "--week-start" },
     ],
     inputs: [
       { id: "date", label: "Date (YYYY-MM-DD)", arg: "--date", placeholder: "2026-03-30", required: false },
