@@ -10,15 +10,21 @@ import { config } from "dotenv";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, ".env") });
 
-const PORT = 3099;
+const PORT = Number(process.env.PORT || 3099);
 const NODE = process.execPath;
 
 // ─── Supabase ──────────────────────────────────────────────────────
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+const supabase =
+  process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+    : null;
+
+const requireSupabase = (res) => {
+  if (supabase) return true;
+  json(res, { error: "Supabase is not configured on this computer." }, 503);
+  return false;
+};
 
 // ─── Script Registry ───────────────────────────────────────────────
 
@@ -33,6 +39,7 @@ const SCRIPTS = [
     flags: [
       { id: "dry-run", label: "Dry Run", arg: "--dry-run", default: true },
       { id: "login", label: "Force Login", arg: "--login", default: false },
+      { id: "headed", label: "Show Browser", arg: "--headed", default: false },
     ],
   },
   {
@@ -70,6 +77,10 @@ const SCRIPTS = [
     file: "check-clockout.mjs",
     flags: [
       { id: "login", label: "Force Login", arg: "--login", default: false },
+    ],
+    modes: [
+      { id: "day", label: "Single Day", dateLabel: "Date (YYYY-MM-DD)", dateArg: "--date" },
+      { id: "week", label: "Full Week", dateLabel: "Week Start (YYYY-MM-DD)", dateArg: "--week-start" },
     ],
     inputs: [
       { id: "date", label: "Date (YYYY-MM-DD)", arg: "--date", placeholder: "2026-03-30", required: false },
@@ -109,8 +120,8 @@ const server = createServer(async (req, res) => {
 
   // GET /api/scripts
   if (req.method === "GET" && url.pathname === "/api/scripts") {
-    json(res, SCRIPTS.map(({ id, name, description, flags, inputs }) => ({
-      id, name, description, flags, inputs,
+    json(res, SCRIPTS.map(({ id, name, description, flags, inputs, modes }) => ({
+      id, name, description, flags, inputs, modes,
     })));
     return;
   }
@@ -118,6 +129,8 @@ const server = createServer(async (req, res) => {
   // ─── Tax Properties CRUD ───────────────────────────────────────
 
   if (url.pathname === "/api/tax/properties") {
+    if (!requireSupabase(res)) return;
+
     if (req.method === "GET") {
       const { data, error } = await supabase
         .from("tax_properties").select("*").order("id");
@@ -150,6 +163,8 @@ const server = createServer(async (req, res) => {
 
   // GET /api/tax/listing-names
   if (req.method === "GET" && url.pathname === "/api/tax/listing-names") {
+    if (!requireSupabase(res)) return;
+
     const all = url.searchParams.get("all");
     const idsParam = url.searchParams.get("ids");
 
@@ -191,7 +206,17 @@ const server = createServer(async (req, res) => {
     }
     for (const input of script.inputs ?? []) {
       const value = inputs[input.id];
-      if (value) args.push(input.arg, value);
+      if (!value) continue;
+
+      if (script.id === "tsheets-check" && input.id === "date") {
+        const modeId = inputs.mode === "week" ? "week" : "day";
+        const mode = script.modes?.find((entry) => entry.id === modeId);
+        args.push(mode?.dateArg ?? input.arg, value);
+        continue;
+      }
+
+      if (input.id === "mode") continue;
+      args.push(input.arg, value);
     }
 
     res.writeHead(200, {

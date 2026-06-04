@@ -55,12 +55,14 @@
 
     .input-group { display: flex; align-items: center; gap: 6px; }
     .input-group label { font-size: 13px; color: #a3a3a3; white-space: nowrap; }
-    .input-group input {
+    .input-group input,
+    .input-group select {
       background: #0a0a0a; border: 1px solid #404040; border-radius: 6px;
       color: #e5e5e5; padding: 6px 10px; font-size: 13px; width: 140px;
       font-family: 'SF Mono', 'Fira Code', monospace;
     }
-    .input-group input:focus { outline: none; border-color: #22c55e; }
+    .input-group input:focus,
+    .input-group select:focus { outline: none; border-color: #22c55e; }
 
     button.run {
       background: #22c55e; color: #0a0a0a; border: none; border-radius: 8px;
@@ -228,12 +230,35 @@
         controls.appendChild(label);
       }
 
+      // Script-specific mode selector
+      if (s.modes?.length) {
+        const group = document.createElement('div');
+        group.className = 'input-group';
+        const lbl = document.createElement('label');
+        lbl.textContent = 'Mode:';
+        const select = document.createElement('select');
+        select.dataset.script = s.id;
+        select.dataset.input = 'mode';
+        for (const mode of s.modes) {
+          const option = document.createElement('option');
+          option.value = mode.id;
+          option.textContent = mode.label;
+          select.appendChild(option);
+        }
+        select.addEventListener('change', () => updateScriptMode(s.id));
+        group.appendChild(lbl);
+        group.appendChild(select);
+        controls.appendChild(group);
+      }
+
       // Inputs
       for (const i of (s.inputs || [])) {
         const group = document.createElement('div');
         group.className = 'input-group';
         const lbl = document.createElement('label');
         lbl.textContent = `${i.label}:`;
+        lbl.dataset.script = s.id;
+        lbl.dataset.labelFor = i.id;
         const inp = document.createElement('input');
         inp.type = i.id.includes('date') ? 'date' : 'text';
         inp.dataset.script = s.id;
@@ -275,6 +300,7 @@
       card.appendChild(output);
 
       app.appendChild(card);
+      updateScriptMode(s.id);
 
       // Show properties table on clackamas-tax tab
       if (s.id === 'clackamas-tax') {
@@ -447,6 +473,15 @@
 
     const activeControllers = {};
 
+    function updateScriptMode(id) {
+      const script = scripts.find(sc => sc.id === id);
+      if (!script?.modes?.length) return;
+      const modeSelect = document.querySelector(`select[data-script="${id}"][data-input="mode"]`);
+      const mode = script.modes.find(entry => entry.id === modeSelect?.value) || script.modes[0];
+      const dateLabel = document.querySelector(`label[data-script="${id}"][data-label-for="date"]`);
+      if (dateLabel) dateLabel.textContent = `${mode.dateLabel}:`;
+    }
+
     async function runScript(id) {
       const btn = document.querySelector(`button[data-script="${id}"]`);
       const output = document.getElementById(`output-${id}`);
@@ -466,8 +501,9 @@
       });
 
       const inputs = {};
-      document.querySelectorAll(`input[type="text"][data-script="${id}"]`).forEach(el => {
-        if (el.value.trim()) inputs[el.dataset.input] = el.value.trim();
+      document.querySelectorAll(`[data-script="${id}"][data-input]`).forEach(el => {
+        const value = typeof el.value === 'string' ? el.value.trim() : '';
+        if (value) inputs[el.dataset.input] = value;
       });
 
       output.textContent = '';
