@@ -73,14 +73,14 @@ env_value() {
 
 write_tsheets_env() {
   local env_file="$1"
-  local gmail_user="$2"
-  local gmail_app_password="$3"
+  local resend_api_key="$2"
+  local resend_from_email="$3"
   local notify_email="$4"
 
   umask 077
   cat > "$env_file" << EOF
-GMAIL_USER=$gmail_user
-GMAIL_APP_PASSWORD=$gmail_app_password
+RESEND_API_KEY=$resend_api_key
+RESEND_FROM_EMAIL=$resend_from_email
 NOTIFY_EMAIL=$notify_email
 WAREHOUSE_LAT=45.5205172
 WAREHOUSE_LNG=-122.6552987
@@ -91,15 +91,15 @@ EOF
 
 configure_tsheets_env() {
   local env_file="$SCRIPTS_DIR/tsheets-check/.env"
-  local current_user current_password current_notify
+  local current_api_key current_from_email current_notify
 
-  current_user="$(env_value GMAIL_USER "$env_file" || true)"
-  current_password="$(env_value GMAIL_APP_PASSWORD "$env_file" || true)"
+  current_api_key="$(env_value RESEND_API_KEY "$env_file" || true)"
+  current_from_email="$(env_value RESEND_FROM_EMAIL "$env_file" || true)"
   current_notify="$(env_value NOTIFY_EMAIL "$env_file" || true)"
 
-  if [ -n "$current_user" ] && [ -n "$current_password" ] && [ -n "$current_notify" ]; then
+  if [ -n "$current_api_key" ] && [ -n "$current_from_email" ] && [ -n "$current_notify" ]; then
     chmod 600 "$env_file"
-    echo "TSheets email credentials are configured."
+    echo "TSheets Resend email credentials are configured."
     return
   fi
 
@@ -108,43 +108,43 @@ configure_tsheets_env() {
       write_tsheets_env "$env_file" "" "" "trevor@stayportland.com"
     fi
     echo ""
-    echo "  ⚠  TSheets email credentials are not configured."
-    echo "     Edit $env_file to add GMAIL_USER and GMAIL_APP_PASSWORD."
+    echo "  ⚠  TSheets Resend email credentials are not configured."
+    echo "     Edit $env_file to add RESEND_API_KEY and RESEND_FROM_EMAIL."
     echo ""
     return
   fi
 
   echo ""
   echo "  Configure TSheets email reports."
-  echo "  Use a Gmail App Password, not the normal Gmail login password."
-  echo "  App Passwords: https://myaccount.google.com/apppasswords"
+  echo "  Use a Resend API key and a verified Resend sender address."
   echo ""
 
-  local gmail_user gmail_app_password notify_email default_notify
+  local resend_api_key resend_from_email notify_email default_notify default_from
   default_notify="${current_notify:-trevor@stayportland.com}"
+  default_from="${current_from_email:-Local Ops <reports@stayportland.com>}"
 
-  read -r -p "  Gmail address${current_user:+ [$current_user]}: " gmail_user
-  gmail_user="${gmail_user:-$current_user}"
-
-  if [ -n "$current_password" ]; then
-    read -r -s -p "  Gmail App Password [keep existing if blank]: " gmail_app_password
+  if [ -n "$current_api_key" ]; then
+    read -r -s -p "  Resend API key [keep existing if blank]: " resend_api_key
     echo ""
-    gmail_app_password="${gmail_app_password:-$current_password}"
+    resend_api_key="${resend_api_key:-$current_api_key}"
   else
-    read -r -s -p "  Gmail App Password: " gmail_app_password
+    read -r -s -p "  Resend API key: " resend_api_key
     echo ""
   fi
+
+  read -r -p "  Resend from address [$default_from]: " resend_from_email
+  resend_from_email="${resend_from_email:-$default_from}"
 
   read -r -p "  Notification email(s) [$default_notify]: " notify_email
   notify_email="${notify_email:-$default_notify}"
 
-  write_tsheets_env "$env_file" "$gmail_user" "$gmail_app_password" "$notify_email"
+  write_tsheets_env "$env_file" "$resend_api_key" "$resend_from_email" "$notify_email"
 
-  if [ -n "$gmail_user" ] && [ -n "$gmail_app_password" ] && [ -n "$notify_email" ]; then
-    echo "  TSheets email credentials saved to $env_file"
+  if [ -n "$resend_api_key" ] && [ -n "$resend_from_email" ] && [ -n "$notify_email" ]; then
+    echo "  TSheets Resend email credentials saved to $env_file"
   else
     echo ""
-    echo "  ⚠  TSheets email credentials are still incomplete."
+    echo "  ⚠  TSheets Resend email credentials are still incomplete."
     echo "     Email reports will be skipped until $env_file is filled in."
   fi
   echo ""

@@ -28,8 +28,8 @@ The first run opens a browser so the user can log in to QuickBooks Time. The sav
 The installer prompts for email report credentials if `~/scripts/tsheets-check/.env` is missing or incomplete. Email reports require:
 
 ```bash
-GMAIL_USER=
-GMAIL_APP_PASSWORD=
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=Local Ops <reports@stayportland.com>
 NOTIFY_EMAIL=trevor@stayportland.com
 WAREHOUSE_LAT=45.5205172
 WAREHOUSE_LNG=-122.6552987
