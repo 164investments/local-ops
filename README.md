@@ -21,6 +21,10 @@ The installer creates:
 
 Run the install command again, or double-click `Update Local Ops.command` in `~/Applications`.
 
+## Rosetta Prompt
+
+Local Ops runs natively on Apple Silicon and does not require Rosetta. If macOS shows a Rosetta installation prompt for an older Local Ops shortcut, rerun the installer to replace the shortcut with the native launcher configuration.
+
 ## QuickBooks Time
 
 The first run opens a browser so the user can log in to QuickBooks Time. The saved browser session is stored locally and is ignored by git.

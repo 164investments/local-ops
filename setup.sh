@@ -7,6 +7,7 @@ TSHEETS_REPO="https://github.com/164investments/tsheets-clockout-checker.git"
 APP_ROOT="$HOME/Applications"
 APP_DIR="$APP_ROOT/Local Ops.app/Contents/MacOS"
 RESOURCES_DIR="$APP_ROOT/Local Ops.app/Contents/Resources"
+INFO_PLIST_SOURCE="$INSTALL_DIR/assets/LocalOps-Info.plist"
 UPDATE_COMMAND="$APP_ROOT/Update Local Ops.command"
 
 load_brew_shellenv() {
@@ -276,29 +277,8 @@ wait "\$SERVER_PID"
 EOF
 chmod +x "$APP_DIR/Local Ops"
 
-# Create Info.plist for the app
-cat > "$HOME/Applications/Local Ops.app/Contents/Info.plist" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleName</key>
-  <string>Local Ops</string>
-  <key>CFBundleExecutable</key>
-  <string>Local Ops</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.164investments.local-ops</string>
-  <key>CFBundleIconFile</key>
-  <string>LocalOps</string>
-  <key>CFBundleIconName</key>
-  <string>LocalOps</string>
-  <key>CFBundleVersion</key>
-  <string>1.0</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-</dict>
-</plist>
-EOF
+# Copy the plist that declares native architecture priority for this script-only app.
+cp "$INFO_PLIST_SOURCE" "$HOME/Applications/Local Ops.app/Contents/Info.plist"
 touch "$HOME/Applications/Local Ops.app"
 
 # ─── Create updater shortcut ────────────────────────────────────
