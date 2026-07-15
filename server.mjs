@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
+import { withTaxPaid } from "./tax-history.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, ".env") });
@@ -15,9 +16,11 @@ const NODE = process.execPath;
 
 // ─── Supabase ──────────────────────────────────────────────────────
 
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase =
-  process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
-    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+  process.env.SUPABASE_URL && supabaseKey
+    ? createClient(process.env.SUPABASE_URL, supabaseKey)
     : null;
 
 const requireSupabase = (res) => {
@@ -49,6 +52,7 @@ const SCRIPTS = [
     dir: join(homedir(), "scripts", "clackamas-tax"),
     command: NODE,
     file: "file-tax.mjs",
+    args: ["--from-db"],
     flags: [
       { id: "dry-run", label: "Dry Run", arg: "--dry-run", default: true },
     ],
@@ -186,6 +190,25 @@ const server = createServer(async (req, res) => {
     return json(res, []);
   }
 
+  // ─── Tax Filing History ────────────────────────────────────────
+
+  // GET /api/tax/filings — filing history with the actual tax payment amount.
+  // Rows created before tax_due persistence was fixed derive the county's net
+  // 5.7% remittance from revenue and are explicitly marked as derived.
+  if (req.method === "GET" && url.pathname === "/api/tax/filings") {
+    if (!requireSupabase(res)) return;
+
+    const { data, error } = await supabase
+      .from("tax_filings")
+      .select(
+        "id, property_id, period_month, revenue, reservation_count, tax_due, confirmation_number, status, error_message, filed_at, created_at"
+      )
+      .order("period_month", { ascending: false })
+      .order("property_id", { ascending: true });
+    if (error) return json(res, { error: error.message }, 500);
+    return json(res, (data ?? []).map(withTaxPaid));
+  }
+
   // ─── Run Script (SSE) ─────────────────────────────────────────
 
   const runMatch = url.pathname.match(/^\/api\/run\/([a-z0-9-]+)$/);
@@ -200,7 +223,7 @@ const server = createServer(async (req, res) => {
     const body = await readBody(req);
     const { flags = {}, inputs = {} } = body;
 
-    const args = [scriptPath];
+    const args = [scriptPath, ...(script.args ?? [])];
     for (const flag of script.flags ?? []) {
       if (flags[flag.id]) args.push(flag.arg);
     }
