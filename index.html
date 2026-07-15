@@ -108,6 +108,31 @@
     }
     .badge-active { background: #052e16; color: #4ade80; }
     .badge-inactive { background: #1c1917; color: #a3a3a3; }
+    .badge-error { background: #450a0a; color: #f87171; }
+    .history-month {
+      margin-bottom: 12px; border: 1px solid #262626; border-radius: 8px;
+      overflow: hidden;
+    }
+    .history-month summary {
+      list-style: none; cursor: pointer; padding: 10px 14px; background: #111111;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      font-size: 13px; user-select: none;
+    }
+    .history-month summary::-webkit-details-marker { display: none; }
+    .history-month summary::before {
+      content: '▸'; color: #737373; display: inline-block; transition: transform 0.15s;
+    }
+    .history-month[open] summary::before { transform: rotate(90deg); }
+    .history-month-label {
+      flex: 1; font-weight: 600; font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .history-month-stats {
+      color: #a3a3a3; font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .history-table-wrap { overflow-x: auto; }
+    .history-note { margin-top: 10px; color: #a3a3a3; font-size: 12px; line-height: 1.5; }
+    .tax-paid { color: #4ade80; font-family: 'SF Mono', 'Fira Code', monospace; }
     .addr { font-size: 12px; color: #737373; }
     .listings-list { font-size: 12px; color: #a3a3a3; }
     .action-btns { display: flex; gap: 6px; }
@@ -304,7 +329,12 @@
         propsSection.className = 'props-section';
         propsSection.id = 'props-section';
         app.appendChild(propsSection);
+        const historySection = document.createElement('div');
+        historySection.className = 'props-section';
+        historySection.id = 'history-section';
+        app.appendChild(historySection);
         loadProperties();
+        loadHistory();
       }
     }
 
@@ -406,6 +436,182 @@
       }
       table.appendChild(tbody);
       section.appendChild(table);
+    }
+
+    // ─── Filing history ───────────────────────────────
+
+    async function loadHistory() {
+      const section = document.getElementById('history-section');
+      if (!section) return;
+      section.textContent = '';
+
+      const header = document.createElement('div');
+      header.className = 'props-header';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'History';
+      header.appendChild(h3);
+      const refresh = document.createElement('button');
+      refresh.className = 'btn-sm';
+      refresh.textContent = 'Refresh';
+      refresh.addEventListener('click', loadHistory);
+      header.appendChild(refresh);
+      section.appendChild(header);
+
+      try {
+        const [filingsRes, propsRes] = await Promise.all([
+          fetch('/api/tax/filings'),
+          fetch('/api/tax/properties'),
+        ]);
+        const filings = await filingsRes.json();
+        const historyProperties = await propsRes.json();
+        if (!filingsRes.ok) throw new Error(filings.error || 'Could not load filing history.');
+        if (!propsRes.ok) throw new Error(historyProperties.error || 'Could not load tax properties.');
+        properties = historyProperties;
+
+        if (filings.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'addr';
+          empty.textContent = 'No filings recorded yet.';
+          section.appendChild(empty);
+          return;
+        }
+
+        const propsById = Object.fromEntries(properties.map(p => [p.id, p]));
+        const byMonth = {};
+        for (const filing of filings) {
+          (byMonth[filing.period_month] ||= []).push(filing);
+        }
+        const months = Object.keys(byMonth).sort().reverse();
+        let hasDerivedAmounts = false;
+
+        for (const month of months) {
+          const rows = byMonth[month];
+          const paidRows = rows.filter(row => row.status === 'paid');
+          const taxPaid = paidRows.reduce(
+            (total, row) => total + (row.tax_paid == null ? 0 : Number(row.tax_paid)),
+            0
+          );
+          const monthHasDerived = paidRows.some(row => row.tax_paid_source === 'derived');
+          hasDerivedAmounts ||= monthHasDerived;
+
+          const wrap = document.createElement('details');
+          wrap.className = 'history-month';
+          wrap.open = month === months[0];
+
+          const summary = document.createElement('summary');
+          const left = document.createElement('span');
+          left.className = 'history-month-label';
+          left.textContent = month;
+          const right = document.createElement('span');
+          right.className = 'history-month-stats';
+          right.textContent = `${paidRows.length}/${rows.length} paid · $${taxPaid.toFixed(2)} tax paid${monthHasDerived ? '*' : ''}`;
+          summary.appendChild(left);
+          summary.appendChild(right);
+          wrap.appendChild(summary);
+
+          const tableWrap = document.createElement('div');
+          tableWrap.className = 'history-table-wrap';
+          const table = document.createElement('table');
+          table.className = 'props';
+          const thead = document.createElement('thead');
+          const hrow = document.createElement('tr');
+          for (const col of ['Cert #', 'Property', 'Gross Revenue', 'Tax Paid', 'Reservations', 'Status', 'Confirmation #', 'Filed At']) {
+            const th = document.createElement('th');
+            th.textContent = col;
+            hrow.appendChild(th);
+          }
+          thead.appendChild(hrow);
+          table.appendChild(thead);
+
+          const tbody = document.createElement('tbody');
+          rows.sort((a, b) =>
+            (propsById[a.property_id]?.certificate_no || '').localeCompare(
+              propsById[b.property_id]?.certificate_no || ''
+            )
+          );
+          for (const row of rows) {
+            const prop = propsById[row.property_id];
+            const tr = document.createElement('tr');
+
+            const tdCert = document.createElement('td');
+            tdCert.className = 'cert';
+            tdCert.textContent = prop?.certificate_no || '#' + row.property_id;
+            tr.appendChild(tdCert);
+
+            const tdName = document.createElement('td');
+            tdName.textContent = prop?.name || '—';
+            tr.appendChild(tdName);
+
+            const tdRevenue = document.createElement('td');
+            tdRevenue.className = 'cert';
+            tdRevenue.textContent = `$${Number(row.revenue || 0).toFixed(2)}`;
+            tr.appendChild(tdRevenue);
+
+            const tdPaid = document.createElement('td');
+            tdPaid.className = 'tax-paid';
+            tdPaid.textContent = row.tax_paid == null
+              ? '—'
+              : `$${Number(row.tax_paid).toFixed(2)}${row.tax_paid_source === 'derived' ? '*' : ''}`;
+            if (row.tax_paid_source === 'derived') {
+              tdPaid.title = 'Derived from gross revenue at the county net remittance rate.';
+            }
+            tr.appendChild(tdPaid);
+
+            const tdReservations = document.createElement('td');
+            tdReservations.textContent = row.reservation_count ?? 0;
+            tr.appendChild(tdReservations);
+
+            const tdStatus = document.createElement('td');
+            const badge = document.createElement('span');
+            badge.className = 'badge ' + (
+              row.status === 'paid'
+                ? 'badge-active'
+                : row.status === 'error'
+                  ? 'badge-error'
+                  : 'badge-inactive'
+            );
+            badge.textContent = row.status;
+            tdStatus.appendChild(badge);
+            if (row.error_message) {
+              const error = document.createElement('div');
+              error.className = 'addr stderr';
+              error.textContent = row.error_message;
+              tdStatus.appendChild(error);
+            }
+            tr.appendChild(tdStatus);
+
+            const tdConfirmation = document.createElement('td');
+            tdConfirmation.className = 'cert';
+            tdConfirmation.textContent = row.confirmation_number || '—';
+            tr.appendChild(tdConfirmation);
+
+            const tdFiled = document.createElement('td');
+            tdFiled.className = 'addr';
+            tdFiled.textContent = row.filed_at
+              ? new Date(row.filed_at).toLocaleString()
+              : '—';
+            tr.appendChild(tdFiled);
+
+            tbody.appendChild(tr);
+          }
+          table.appendChild(tbody);
+          tableWrap.appendChild(table);
+          wrap.appendChild(tableWrap);
+          section.appendChild(wrap);
+        }
+
+        if (hasDerivedAmounts) {
+          const note = document.createElement('p');
+          note.className = 'history-note';
+          note.textContent = '* Derived at the county\'s 5.7% net remittance rate for paid rows where the older automation did not save tax_due.';
+          section.appendChild(note);
+        }
+      } catch (error) {
+        const message = document.createElement('div');
+        message.className = 'stderr';
+        message.textContent = error instanceof Error ? error.message : 'Could not load filing history.';
+        section.appendChild(message);
+      }
     }
 
     function openPropertyModal(prop = null) {
@@ -595,6 +801,9 @@
         currentBtn.classList.remove('running');
       }
       saveOutputState(id);
+      if (id === 'clackamas-tax' && document.getElementById('history-section')) {
+        loadHistory();
+      }
     }
 
     function appendToOutput(output, msg) {
