@@ -378,7 +378,7 @@
       table.className = 'props';
       const thead = document.createElement('thead');
       const hrow = document.createElement('tr');
-      for (const col of ['Cert #', 'Name', 'Listings', 'Owner', 'Active', '']) {
+      for (const col of ['Registration / account #', 'Name', 'Listings', 'Owner', 'Active', '']) {
         const th = document.createElement('th');
         th.textContent = col;
         hrow.appendChild(th);
@@ -624,7 +624,7 @@
       h3.textContent = prop ? 'Edit Property' : 'Add Property';
       modal.appendChild(h3);
       const fields = [
-        { key: 'certificate_no', label: 'Certificate #', ph: '#1234-25' },
+        { key: 'certificate_no', label: 'Registration / account #', ph: '#1234-25 or 123456' },
         { key: 'name', label: 'Name', ph: 'Property name on tax form' },
         { key: 'address', label: 'Address', ph: '12345 E Street Rd' },
         { key: 'owner_name', label: 'Owner', ph: 'Owner name' },
