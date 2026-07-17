@@ -2,16 +2,35 @@ import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
+import { fetchBeavertonSchedule } from "./lib/lifetime-client.mjs";
+import {
+  addDateDays,
+  buildBusynessForecast,
+  dateKey,
+  validateObservation,
+} from "./lib/lifetime-busyness.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, ".env") });
 
 const PORT = Number(process.env.PORT || 3099);
 const NODE = process.execPath;
+const LOCAL_DATA_DIR = process.env.LOCAL_OPS_DATA_DIR || join(homedir(), ".local-ops");
+const LIFE_TIME_SCHEDULE_CACHE = join(LOCAL_DATA_DIR, "lifetime-beaverton-schedule.json");
+const LIFE_TIME_OBSERVATIONS = join(LOCAL_DATA_DIR, "lifetime-beaverton-observations.json");
+const LIFE_TIME_CACHE_TTL_MS = 15 * 60 * 1_000;
+
+let memorySchedule = null;
 
 // ─── Supabase ──────────────────────────────────────────────────────
 
@@ -29,6 +48,12 @@ const requireSupabase = (res) => {
 // ─── Script Registry ───────────────────────────────────────────────
 
 const SCRIPTS = [
+  {
+    id: "lifetime-beaverton",
+    name: "Life Time",
+    description: "Best times to visit Life Time Beaverton",
+    type: "lifetime-dashboard",
+  },
   {
     id: "booking-pay",
     name: "Booking.com Invoices",
@@ -105,6 +130,47 @@ const json = (res, data, status = 200) => {
   res.end(JSON.stringify(data));
 };
 
+const readJsonFile = (path, fallback) => {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return fallback;
+  }
+};
+
+const writeJsonFile = (path, value) => {
+  mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+  const temporaryPath = `${path}.tmp-${process.pid}`;
+  writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  renameSync(temporaryPath, path);
+};
+
+const getLifeTimeSchedule = async (now) => {
+  const currentTime = now.getTime();
+  if (memorySchedule && currentTime - memorySchedule.fetchedAt < LIFE_TIME_CACHE_TTL_MS) {
+    return { ...memorySchedule, source: "live" };
+  }
+
+  const startDate = dateKey(now);
+  const endDate = addDateDays(startDate, 6);
+  try {
+    const events = await fetchBeavertonSchedule({ startDate, endDate });
+    const snapshot = { events, fetchedAt: currentTime };
+    writeJsonFile(LIFE_TIME_SCHEDULE_CACHE, snapshot);
+    memorySchedule = snapshot;
+    return { ...snapshot, source: "live" };
+  } catch (error) {
+    const cached = readJsonFile(LIFE_TIME_SCHEDULE_CACHE, null);
+    if (cached?.events && Number.isFinite(cached.fetchedAt)) {
+      return { ...cached, source: "cache", error: error.message };
+    }
+    return { events: [], fetchedAt: null, source: "baseline", error: error.message };
+  }
+};
+
 // ─── Server ────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
@@ -120,10 +186,48 @@ const server = createServer(async (req, res) => {
 
   // GET /api/scripts
   if (req.method === "GET" && url.pathname === "/api/scripts") {
-    json(res, SCRIPTS.map(({ id, name, description, flags, inputs, modes }) => ({
-      id, name, description, flags, inputs, modes,
+    json(res, SCRIPTS.map(({ id, name, description, type, flags, inputs, modes }) => ({
+      id, name, description, type, flags, inputs, modes,
     })));
     return;
+  }
+
+  // ─── Life Time Beaverton Busyness ─────────────────────────────
+
+  if (url.pathname === "/api/lifetime/busyness") {
+    if (req.method === "GET") {
+      const now = new Date();
+      const schedule = await getLifeTimeSchedule(now);
+      const observations = readJsonFile(LIFE_TIME_OBSERVATIONS, []);
+      return json(res, {
+        ...buildBusynessForecast({
+          events: schedule.events,
+          observations,
+          now,
+          source: schedule.source,
+        }),
+        schedule: {
+          source: schedule.source,
+          fetchedAt: schedule.fetchedAt
+            ? new Date(schedule.fetchedAt).toISOString()
+            : null,
+          error: schedule.error ?? null,
+        },
+      });
+    }
+
+    if (req.method === "POST") {
+      try {
+        const observation = validateObservation(await readBody(req));
+        const observations = readJsonFile(LIFE_TIME_OBSERVATIONS, []);
+        observations.push(observation);
+        const retained = observations.slice(-500);
+        writeJsonFile(LIFE_TIME_OBSERVATIONS, retained);
+        return json(res, { observation, total: retained.length }, 201);
+      } catch (error) {
+        return json(res, { error: error.message }, 400);
+      }
+    }
   }
 
   // ─── Tax Properties CRUD ───────────────────────────────────────
@@ -193,6 +297,7 @@ const server = createServer(async (req, res) => {
     const scriptId = runMatch[1];
     const script = SCRIPTS.find((s) => s.id === scriptId);
     if (!script) return json(res, { error: "Script not found" }, 404);
+    if (script.type) return json(res, { error: "This tab is not a runnable script." }, 400);
 
     const scriptPath = resolve(script.dir, script.file);
     if (!existsSync(scriptPath)) return json(res, { error: `Script not found: ${scriptPath}` }, 404);

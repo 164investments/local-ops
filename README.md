@@ -2,6 +2,20 @@
 
 Local browser-based ops tools for 164 Investments.
 
+## Life Time Beaverton
+
+The Life Time tab estimates relative gym busyness and recommends the quietest
+upcoming hours. It combines:
+
+- a transparent weekday/weekend demand baseline;
+- pressure from Life Time Beaverton's official public class schedule, including
+  waitlisted classes; and
+- optional one-tap observations recorded while at the club.
+
+The result is a relative estimate, not a live member count. Schedule data is
+cached locally for resilience, and personal observations stay on the computer
+in `~/.local-ops/lifetime-beaverton-observations.json`.
+
 ## Install On A Mac
 
 Run this command in Terminal:
