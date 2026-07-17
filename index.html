@@ -22,7 +22,7 @@
     nav {
       border-bottom: 1px solid #262626;
       padding: 0 24px;
-      display: flex; gap: 0;
+      display: flex; gap: 0; overflow-x: auto;
     }
     nav button {
       background: none; border: none; border-bottom: 2px solid transparent;
@@ -42,6 +42,90 @@
     }
     .script-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
     .script-card p { font-size: 13px; color: #a3a3a3; margin-bottom: 16px; }
+
+    /* Life Time busyness dashboard */
+    .lifetime-dashboard { display: grid; gap: 16px; }
+    .lifetime-hero,
+    .lifetime-panel {
+      background: #171717; border: 1px solid #262626; border-radius: 12px;
+      padding: 20px;
+    }
+    .lifetime-heading {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; margin-bottom: 18px;
+    }
+    .lifetime-heading h2 { font-size: 21px; margin-bottom: 4px; }
+    .lifetime-heading p { color: #a3a3a3; font-size: 13px; line-height: 1.5; }
+    .lifetime-heading a { color: #86efac; }
+    .refresh-btn {
+      background: #262626; color: #e5e5e5; border: 1px solid #404040;
+      border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+    }
+    .refresh-btn:hover { background: #333; }
+    .current-grid {
+      display: grid; grid-template-columns: minmax(180px, 0.8fr) 1.4fr;
+      gap: 16px;
+    }
+    .current-score {
+      min-height: 172px; background: #0a0a0a; border: 1px solid #262626;
+      border-radius: 10px; padding: 18px; display: flex; flex-direction: column;
+      justify-content: center;
+    }
+    .eyebrow {
+      color: #a3a3a3; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .08em; margin-bottom: 8px;
+    }
+    .score-label { font-size: 30px; font-weight: 700; }
+    .score-number { color: #a3a3a3; font-size: 13px; margin-top: 4px; }
+    .score-meter {
+      height: 7px; margin-top: 14px; background: #262626; border-radius: 99px;
+      overflow: hidden;
+    }
+    .score-meter span { display: block; height: 100%; border-radius: 99px; }
+    .score-details {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+    }
+    .detail-card { background: #0a0a0a; border-radius: 10px; padding: 14px; }
+    .detail-value { font-size: 20px; font-weight: 650; }
+    .detail-label { color: #a3a3a3; font-size: 11px; margin-top: 3px; }
+    .method-note {
+      color: #737373; font-size: 12px; line-height: 1.5; margin-top: 12px;
+    }
+    .panel-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .panel-copy { color: #a3a3a3; font-size: 12px; line-height: 1.5; }
+    .recommendations {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px; margin-top: 14px;
+    }
+    .recommendation {
+      background: #0a0a0a; border: 1px solid #262626; border-radius: 10px;
+      padding: 14px;
+    }
+    .recommendation-time { font-size: 17px; font-weight: 650; margin-top: 3px; }
+    .recommendation-score { color: #86efac; font-size: 12px; margin-top: 7px; }
+    .rating-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .rating-btn {
+      background: #0a0a0a; color: #d4d4d4; border: 1px solid #404040;
+      border-radius: 8px; padding: 8px 12px; cursor: pointer;
+    }
+    .rating-btn:hover, .rating-btn:focus { border-color: #22c55e; outline: none; }
+    .rating-status { min-height: 18px; margin-top: 9px; color: #86efac; font-size: 12px; }
+    .heatmap-wrap { overflow-x: auto; margin-top: 14px; }
+    .heatmap { border-collapse: separate; border-spacing: 3px; min-width: 760px; width: 100%; }
+    .heatmap th { color: #737373; font-size: 10px; font-weight: 500; padding: 4px; }
+    .heatmap th:first-child { text-align: left; position: sticky; left: 0; background: #171717; }
+    .heatmap td { height: 28px; min-width: 29px; border-radius: 4px; text-align: center; font-size: 10px; }
+    .heatmap-legend { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: #737373; font-size: 11px; }
+    .legend-gradient { width: 110px; height: 7px; border-radius: 99px; background: linear-gradient(90deg, #14532d, #ca8a04, #b91c1c); }
+    .source-line { color: #737373; font-size: 11px; margin-top: 12px; }
+    .dashboard-error { color: #fca5a5; line-height: 1.5; }
+    @media (max-width: 680px) {
+      header, nav { padding-left: 16px; padding-right: 16px; }
+      main { padding: 16px; }
+      .current-grid { grid-template-columns: 1fr; }
+      .recommendations { grid-template-columns: 1fr; }
+      .score-details { grid-template-columns: repeat(3, 1fr); }
+    }
 
     .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
 
@@ -202,6 +286,11 @@
 
       app.textContent = '';
 
+      if (s.type === 'lifetime-dashboard') {
+        renderLifetimeDashboard();
+        return;
+      }
+
       const card = document.createElement('div');
       card.className = 'script-card';
 
@@ -306,6 +395,218 @@
         app.appendChild(propsSection);
         loadProperties();
       }
+    }
+
+    // ─── Life Time Beaverton ──────────────────────────────────
+
+    function createElement(tag, className, text) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text !== undefined) element.textContent = text;
+      return element;
+    }
+
+    function formatHour(hour) {
+      if (hour === 0 || hour === 24) return '12 AM';
+      if (hour === 12) return '12 PM';
+      return `${hour > 12 ? hour - 12 : hour} ${hour >= 12 ? 'PM' : 'AM'}`;
+    }
+
+    function scoreColor(score) {
+      if (score <= 30) return '#22c55e';
+      if (score <= 48) return '#84cc16';
+      if (score <= 68) return '#eab308';
+      if (score <= 84) return '#f97316';
+      return '#ef4444';
+    }
+
+    async function renderLifetimeDashboard() {
+      app.textContent = '';
+      const loading = createElement('div', 'lifetime-panel', 'Loading Life Time Beaverton forecast…');
+      loading.setAttribute('role', 'status');
+      app.appendChild(loading);
+
+      try {
+        const response = await fetch('/api/lifetime/busyness');
+        if (!response.ok) throw new Error(`Forecast request failed (${response.status})`);
+        const forecast = await response.json();
+        if (activeTab !== 'lifetime-beaverton') return;
+        drawLifetimeDashboard(forecast);
+      } catch (error) {
+        loading.className = 'lifetime-panel dashboard-error';
+        loading.textContent = `Could not load the forecast: ${error.message}`;
+      }
+    }
+
+    function drawLifetimeDashboard(forecast) {
+      app.textContent = '';
+      const dashboard = createElement('div', 'lifetime-dashboard');
+
+      const hero = createElement('section', 'lifetime-hero');
+      const heading = createElement('div', 'lifetime-heading');
+      const titleWrap = createElement('div');
+      titleWrap.appendChild(createElement('h2', '', 'Life Time Beaverton'));
+      const address = createElement('p');
+      const clubLink = createElement('a', '', forecast.club.address);
+      clubLink.href = forecast.club.pageUrl;
+      clubLink.target = '_blank';
+      clubLink.rel = 'noreferrer';
+      address.appendChild(clubLink);
+      titleWrap.appendChild(address);
+      heading.appendChild(titleWrap);
+      const refresh = createElement('button', 'refresh-btn', 'Refresh');
+      refresh.type = 'button';
+      refresh.addEventListener('click', renderLifetimeDashboard);
+      heading.appendChild(refresh);
+      hero.appendChild(heading);
+
+      const currentGrid = createElement('div', 'current-grid');
+      const currentCard = createElement('div', 'current-score');
+      currentCard.appendChild(createElement('div', 'eyebrow', 'Right now'));
+      if (forecast.current) {
+        const label = createElement('div', 'score-label', forecast.current.label);
+        label.style.color = scoreColor(forecast.current.score);
+        currentCard.appendChild(label);
+        currentCard.appendChild(createElement('div', 'score-number', `${forecast.current.score}/100 relative pressure`));
+        const meter = createElement('div', 'score-meter');
+        const fill = document.createElement('span');
+        fill.style.width = `${forecast.current.score}%`;
+        fill.style.background = scoreColor(forecast.current.score);
+        meter.appendChild(fill);
+        currentCard.appendChild(meter);
+      } else {
+        currentCard.appendChild(createElement('div', 'score-label', 'Closed'));
+        currentCard.appendChild(createElement('div', 'score-number', 'See the next best windows below'));
+      }
+      currentGrid.appendChild(currentCard);
+
+      const detailWrap = createElement('div');
+      const details = createElement('div', 'score-details');
+      const current = forecast.current;
+      const detailData = current ? [
+        [current.schedule.startingClasses, 'classes starting'],
+        [current.schedule.waitlistedClasses, 'waitlisted classes'],
+        [current.observations, 'personal samples'],
+      ] : [[0, 'classes starting'], [0, 'waitlisted classes'], [forecast.observationCount, 'personal samples']];
+      for (const [value, label] of detailData) {
+        const card = createElement('div', 'detail-card');
+        card.appendChild(createElement('div', 'detail-value', String(value)));
+        card.appendChild(createElement('div', 'detail-label', label));
+        details.appendChild(card);
+      }
+      detailWrap.appendChild(details);
+      detailWrap.appendChild(createElement('p', 'method-note', `${forecast.methodology}. ${forecast.disclaimer}`));
+      currentGrid.appendChild(detailWrap);
+      hero.appendChild(currentGrid);
+      dashboard.appendChild(hero);
+
+      const bestPanel = createElement('section', 'lifetime-panel');
+      bestPanel.appendChild(createElement('h3', 'panel-title', 'Best upcoming windows'));
+      bestPanel.appendChild(createElement('p', 'panel-copy', 'Lowest estimated crowd pressure in the next 42 open hours.'));
+      const recommendations = createElement('div', 'recommendations');
+      for (const slot of forecast.recommendations) {
+        const item = createElement('div', 'recommendation');
+        const matchingDay = forecast.days.find(day => day.date === slot.date);
+        item.appendChild(createElement('div', 'eyebrow', matchingDay?.label ?? slot.date));
+        item.appendChild(createElement('div', 'recommendation-time', formatHour(slot.hour)));
+        item.appendChild(createElement('div', 'recommendation-score', `${slot.label} · ${slot.score}/100`));
+        recommendations.appendChild(item);
+      }
+      bestPanel.appendChild(recommendations);
+      dashboard.appendChild(bestPanel);
+
+      const ratingPanel = createElement('section', 'lifetime-panel');
+      ratingPanel.appendChild(createElement('h3', 'panel-title', 'How busy is it while you’re there?'));
+      ratingPanel.appendChild(createElement('p', 'panel-copy', 'One tap teaches the model what this weekday and hour actually feel like. Observations stay on this computer.'));
+      const ratingRow = createElement('div', 'rating-row');
+      const ratingLabels = ['Empty', 'Light', 'Normal', 'Busy', 'Packed'];
+      const ratingStatus = createElement('div', 'rating-status');
+      ratingStatus.setAttribute('role', 'status');
+      ratingLabels.forEach((label, index) => {
+        const button = createElement('button', 'rating-btn', label);
+        button.type = 'button';
+        button.addEventListener('click', async () => {
+          ratingRow.querySelectorAll('button').forEach(item => { item.disabled = true; });
+          try {
+            const response = await fetch('/api/lifetime/busyness', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ level: index + 1 }),
+            });
+            if (!response.ok) throw new Error('Could not save observation');
+            ratingStatus.textContent = 'Saved — the forecast now includes this observation.';
+          } catch (error) {
+            ratingStatus.textContent = error.message;
+            ratingRow.querySelectorAll('button').forEach(item => { item.disabled = false; });
+          }
+        });
+        ratingRow.appendChild(button);
+      });
+      ratingPanel.appendChild(ratingRow);
+      ratingPanel.appendChild(ratingStatus);
+      dashboard.appendChild(ratingPanel);
+
+      const heatmapPanel = createElement('section', 'lifetime-panel');
+      heatmapPanel.appendChild(createElement('h3', 'panel-title', 'Seven-day forecast'));
+      heatmapPanel.appendChild(createElement('p', 'panel-copy', 'Lower numbers should mean easier parking and less competition for equipment.'));
+      const heatmapWrap = createElement('div', 'heatmap-wrap');
+      const table = createElement('table', 'heatmap');
+      const allHours = [...new Set(forecast.days.flatMap(day => day.slots.map(slot => slot.hour)))].sort((a, b) => a - b);
+      const headerRow = document.createElement('tr');
+      headerRow.appendChild(createElement('th', '', 'Day'));
+      for (const hour of allHours) {
+        const th = createElement('th', '', hour % 2 === 0 ? formatHour(hour).replace(' ', '') : '');
+        th.scope = 'col';
+        headerRow.appendChild(th);
+      }
+      const thead = document.createElement('thead');
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      for (const day of forecast.days) {
+        const row = document.createElement('tr');
+        const dayHeading = createElement('th', '', day.label);
+        dayHeading.scope = 'row';
+        row.appendChild(dayHeading);
+        const slotByHour = new Map(day.slots.map(slot => [slot.hour, slot]));
+        for (const hour of allHours) {
+          const slot = slotByHour.get(hour);
+          const cell = document.createElement('td');
+          if (slot) {
+            cell.textContent = slot.score;
+            cell.style.background = `${scoreColor(slot.score)}99`;
+            cell.style.color = slot.score > 68 ? '#fff' : '#f5f5f5';
+            cell.setAttribute('aria-label', `${day.label} at ${formatHour(hour)}: ${slot.label}, score ${slot.score}`);
+            cell.title = `${slot.label} · ${slot.schedule.startingClasses} classes starting · ${slot.observations} samples`;
+          } else {
+            cell.textContent = '—';
+            cell.style.color = '#404040';
+            cell.setAttribute('aria-label', `${day.label} at ${formatHour(hour)}: closed`);
+          }
+          row.appendChild(cell);
+        }
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      heatmapWrap.appendChild(table);
+      heatmapPanel.appendChild(heatmapWrap);
+      const legend = createElement('div', 'heatmap-legend');
+      legend.appendChild(createElement('span', '', 'Quieter'));
+      legend.appendChild(createElement('span', 'legend-gradient'));
+      legend.appendChild(createElement('span', '', 'Busier'));
+      heatmapPanel.appendChild(legend);
+      const sourceDate = forecast.schedule.fetchedAt
+        ? new Date(forecast.schedule.fetchedAt).toLocaleString()
+        : 'not available';
+      const sourceLabel = forecast.schedule.source === 'live'
+        ? 'Official Life Time schedule'
+        : forecast.schedule.source === 'cache'
+          ? 'Cached Life Time schedule'
+          : 'Baseline only';
+      heatmapPanel.appendChild(createElement('div', 'source-line', `${sourceLabel} · updated ${sourceDate} · confidence rises as you add observations.`));
+      dashboard.appendChild(heatmapPanel);
+
+      app.appendChild(dashboard);
     }
 
     // ─── Properties ────────────────────────────────────────────

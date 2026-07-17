@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "dev": "node --watch server.mjs"
+    "dev": "node --watch server.mjs",
+    "check": "node --check server.mjs && node --check lib/lifetime-client.mjs && node --check lib/lifetime-busyness.mjs",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
